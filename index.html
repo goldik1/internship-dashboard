@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A tracker for CSE internships, on and off campus, with honest verification stamps and deadline countdowns.">
+<title>Internship Radar — CSE Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#12304A; --navy-text:#C9D6E3;
+    --bg:#EEF1F5; --surface:#FFFFFF; --ink:#16212D; --muted:#4A5868; --faint:#667483;
+    --line:#DCE2E9; --line-strong:#BCC6D1; --chip:#E8EDF3;
+    --accent:#1F5FBF; --accent-dark:#184B97;
+    --warn:#5C4200; --warn-bg:#FFE9A8;
+    --urgent:#7A1F18; --urgent-bg:#FAD4CF;
+    --ok:#1B5E37; --ok-bg:#CFEBD9;
+    --warn-bar:#E0A100; --urgent-bar:#C0392B; --ok-bar:#2E8B57;
+    --head:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+    --body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+    --t:.2s ease;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  [hidden]{display:none !important;}
+  .wrap{max-width:1200px;margin:0 auto;padding:28px 24px 90px;}
+
+  .masthead{background:var(--navy);color:#fff;border-radius:12px;padding:36px 36px 32px;margin-bottom:20px;}
+  .masthead-row{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;}
+  .masthead h1{font-family:var(--head);font-weight:700;font-size:clamp(32px,4.5vw,46px);line-height:1.08;margin:0;letter-spacing:-0.02em;}
+  .masthead .sub{font-size:16px;color:var(--navy-text);margin:12px 0 0;max-width:56ch;}
+  .meta-box{font-size:13.5px;color:var(--navy-text);text-align:right;line-height:1.75;}
+  .meta-box .hl{color:#fff;font-weight:600;}
+
+  .notice{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;
+    padding:14px 18px;font-size:14px;color:var(--muted);margin:0 0 20px;max-width:82ch;}
+  .notice b{color:var(--ink);font-weight:600;}
+  .inline-stamp{font-size:12.5px;font-weight:600;padding:1px 9px;border-radius:99px;background:var(--warn-bg);color:var(--warn);}
+
+  .toolbar-wrap{position:sticky;top:10px;z-index:5;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px 10px;}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;}
+  .toolbar select,.toolbar input[type=text]{font-family:var(--body);font-size:14px;padding:8px 12px;border:1px solid var(--line-strong);
+    background:var(--surface);color:var(--ink);border-radius:8px;height:40px;transition:border-color var(--t),box-shadow var(--t);}
+  .toolbar select:hover,.toolbar input[type=text]:hover{border-color:var(--accent);}
+  .toolbar input[type=text]{flex:1 1 260px;min-width:200px;}
+  .counts{font-size:13px;color:var(--faint);margin-top:8px;}
+
+  .section-head{display:flex;align-items:baseline;gap:12px;margin:40px 0 16px;}
+  .section-head h2{font-family:var(--head);font-weight:700;font-size:22px;margin:0;letter-spacing:-0.01em;}
+  .section-head .rule{flex:1;height:1px;background:var(--line-strong);}
+  .section-head .count{font-size:13px;color:var(--faint);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;align-items:start;}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--warn-bar);border-radius:10px;
+    padding:18px 20px 16px;display:flex;flex-direction:column;gap:14px;transition:box-shadow var(--t),border-color var(--t);}
+  .card[data-flag=confirmed]{border-left-color:var(--ok-bar);}
+  .card[data-flag=watch]{border-left-color:var(--urgent-bar);}
+  .card:hover{border-color:var(--line-strong);box-shadow:0 6px 18px rgba(18,48,74,.10);}
+  .card.hidden{display:none;}
+  .card-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;}
+  .cat{font-size:13px;color:var(--faint);}
+  .card-title{font-family:var(--head);font-weight:600;font-size:18px;line-height:1.25;margin:2px 0 0;}
+  .card-org{font-size:14px;color:var(--muted);margin-top:2px;}
+  .fit{font-size:12.5px;color:var(--faint);white-space:nowrap;text-align:right;}
+  .score-bar{height:5px;background:var(--chip);border-radius:3px;margin-top:5px;overflow:hidden;width:64px;margin-left:auto;}
+  .score-fill{height:100%;background:var(--accent);}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{font-size:13px;font-weight:600;padding:2px 11px;border-radius:99px;background:var(--warn-bg);color:var(--warn);}
+  .chip.watch{background:var(--urgent-bg);color:var(--urgent);}
+  .chip.ok{background:var(--ok-bg);color:var(--ok);}
+  .tag{font-size:13px;color:var(--muted);background:var(--chip);border-radius:99px;padding:2px 11px;}
+
+  .facts{display:grid;grid-template-columns:78px 1fr;gap:6px 12px;font-size:14px;margin:0;}
+  .facts dt{color:var(--faint);}
+  .facts dd{margin:0;}
+  .more summary{cursor:pointer;color:var(--accent);font-size:14px;font-weight:500;transition:color var(--t);}
+  .more summary:hover{color:var(--accent-dark);}
+  .more[open] summary{margin-bottom:10px;}
+  .verify{font-size:13px;color:var(--faint);line-height:1.55;margin-top:10px;}
+  .card-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:12px;}
+  .card-foot a{color:var(--accent);font-size:14px;font-weight:500;text-decoration:none;border-bottom:1px solid transparent;transition:border-color var(--t),color var(--t);}
+  .card-foot a:hover{border-color:var(--accent);color:var(--accent-dark);}
+  select.status{font-family:var(--body);font-size:13.5px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 8px;height:34px;transition:border-color var(--t);}
+  select.status:hover{border-color:var(--accent);}
+
+  .mydate{font-family:var(--body);font-size:13.5px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);border-radius:6px;padding:2px 6px;height:32px;}
+  .mydate-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .left{font-size:13.5px;font-weight:600;color:var(--ok);}
+  .left.soon{color:var(--urgent-bar);} .left.past{color:var(--faint);font-weight:500;}
+  .age{color:var(--faint);} .age.stale{color:var(--warn);font-weight:600;}
+
+  .empty{margin-top:40px;padding:28px;background:var(--surface);border:1px solid var(--line);border-radius:10px;text-align:center;color:var(--muted);}
+  .empty .btn{margin-left:8px;}
+  .linkbtn{font-family:var(--body);font-size:13px;background:none;border:none;color:var(--accent);cursor:pointer;padding:0 0 0 8px;}
+  .linkbtn:hover{color:var(--accent-dark);text-decoration:underline;}
+
+  .foot-note{margin-top:56px;padding-top:20px;border-top:1px solid var(--line-strong);font-size:14px;color:var(--muted);max-width:70ch;}
+  .backup{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px;}
+  .btn{font-family:var(--body);font-size:14px;font-weight:500;padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;cursor:pointer;transition:background var(--t),border-color var(--t);}
+  .btn:hover{background:var(--accent-dark);border-color:var(--accent-dark);}
+  #btn-import{background:var(--surface);color:var(--accent);}
+  #btn-import:hover{background:var(--chip);}
+  :focus-visible{outline:3px solid #8FB4F0;outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto;} *{transition:none !important;}}
+  @media (max-width:640px){
+    .masthead{padding:26px 22px;}
+    .meta-box{text-align:left;}
+    .toolbar-wrap{position:static;}
+    .grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="masthead-row">
+      <div>
+        
+        <h1>Internship Radar</h1>
+        <p class="sub">I built this to track CSE internships, on and off campus, in one place. Each card shows how sure I am that it is real and open, so I never trust a date I have not checked.</p>
+      </div>
+      <div class="meta-box">
+        Latest check <span class="hl">05 Oct 2026</span><span id="meta-age"></span><br>
+        Entries <span class="hl" id="meta-n">12</span><br>
+        Confirm every date at the source
+      </div>
+    </div>
+  </div>
+
+  <div class="notice">
+    <b>How to read this.</b> Each listing came from a real search, but none has a deadline confirmed on its official portal yet, so each carries an <span class="inline-stamp">unverified</span> stamp.
+    Open the source link, confirm the date, then enter it in the card's <b>My date</b> field. The countdown and the deadline sort use the date you enter.
+  </div>
+
+  <div class="toolbar-wrap">
+    <div class="toolbar">
+      <input type="text" id="q" placeholder="Search title, company, skill…">
+      <select id="f-cat"><option value="">All categories</option></select>
+      <select id="f-loc">
+        <option value="">All regions</option>
+        <option value="India">India</option>
+        <option value="International">International</option>
+      </select>
+      <select id="f-remote">
+        <option value="">Remote / onsite</option>
+        <option value="Remote">Remote</option>
+        <option value="Hybrid">Hybrid</option>
+        <option value="On-site">On-site</option>
+      </select>
+      <select id="f-pay">
+        <option value="">Paid / unpaid</option>
+        <option value="Paid">Paid</option>
+        <option value="Unpaid">Unpaid</option>
+      </select>
+      <select id="f-status">
+        <option value="">Any tracking status</option>
+        <option value="none">Not tracked</option>
+        <option value="Interested">Interested</option>
+        <option value="Applied">Applied</option>
+        <option value="OA Received">OA Received</option>
+        <option value="Interview">Interview</option>
+        <option value="Selected">Selected</option>
+        <option value="Rejected">Rejected</option>
+        <option value="Saved">Saved</option>
+      </select>
+      <select id="f-sort" aria-label="Sort order"><option value="relevance">Sort: relevance</option><option value="deadline">Sort: my deadline</option></select>
+    </div>
+    <div class="counts"><span id="counts">loading…</span> <button class="linkbtn js-clear" type="button">Clear filters</button></div>
+  </div>
+
+  <div id="sections"></div>
+  <div class="empty" id="empty" hidden>No listings match these filters. <button class="btn js-clear" type="button">Clear filters</button></div>
+
+  <div class="foot-note">
+    Your status and dates are saved in this browser, on this device only. Use <b>Export</b> to back them up or move them to another device, and <b>Import</b> to restore them.
+    <div class="backup">
+      <button class="btn" id="btn-export" type="button">Export tracking</button>
+      <button class="btn" id="btn-import" type="button">Import tracking</button>
+      <input type="file" id="file-import" accept="application/json" hidden>
+      <span class="verify" id="backup-msg" role="status"></span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const DATA = [
+  {
+    id:"msft-swe-2026", title:"Software Engineer Intern", org:"Microsoft",
+    category:"Software Development / SDE",
+    location:"Bengaluru, Hyderabad, Noida (multiple India locations)",
+    region:"India", remote:"On-site", pay:"Paid",
+    stipend:"Stipend not officially published", duration:"Not specified on listing",
+    deadline:"Rolling / until filled", deadlineFlag:"unverified",
+    eligibility:"Bachelor's/Master's in CS or related, min. 1 semester remaining after internship, 1+ yr coding experience (C++/Java/C#/Python)",
+    skills:"DSA, OOP, system design fundamentals", intlAllowed:"India-based role",
+    link:"https://careers.microsoft.com/", source:"Microsoft Careers portal (via multiple aggregator confirmations)",
+    verified:"09 Aug 2026 — role confirmed open, exact stipend/deadline not published", score:9, tags:["sde","highvalue"]
+  },
+  {
+    id:"google-intern-2026", title:"Software Engineering Intern (role-based, multiple teams)", org:"Google",
+    category:"Software Development / SDE", location:"Bengaluru, Hyderabad + global",
+    region:"International", remote:"On-site", pay:"Paid",
+    stipend:"Not published — competitive per past cycles", duration:"Varies by role",
+    deadline:"No single deadline — rolling per-role postings", deadlineFlag:"unverified",
+    eligibility:"Currently enrolled degree student, apply per specific open role",
+    skills:"DSA, coding, problem solving, role-specific stack", intlAllowed:"Yes, apply per country listing",
+    link:"https://careers.google.com/students/", source:"Google Careers (students)",
+    verified:"09 Aug 2026 — portal model confirmed, no fixed 2026 deadline exists to verify", score:9, tags:["sde","highvalue"]
+  },
+  {
+    id:"amazon-intern-2026", title:"Software Development Engineer Intern", org:"Amazon",
+    category:"Software Development / SDE", location:"Bengaluru, Hyderabad, Chennai",
+    region:"India", remote:"On-site", pay:"Paid",
+    stipend:"Reported ~₹40,000+/month by aggregators, not Amazon-confirmed", duration:"10–12 weeks (summer), some 6-month tracks",
+    deadline:"Rolling — pre-final/final year cycles open ~fall prior year", deadlineFlag:"unverified",
+    eligibility:"Pre-final/final year, some programs open to 2nd year",
+    skills:"Java/C++/Python, DSA, cloud basics for AWS-linked roles", intlAllowed:"India-based role",
+    link:"https://www.amazon.jobs/en/teams/internships-for-students", source:"Amazon Jobs — student internships",
+    verified:"09 Aug 2026 — program confirmed active, stipend figure unconfirmed", score:8, tags:["sde","highvalue"]
+  },
+  {
+    id:"drdo-dgre-2026", title:"Research Intern — DGRE Lab (CSE track)", org:"DRDO (Defence Geoinformatics Research Establishment)",
+    category:"Government / Research", location:"Chandigarh",
+    region:"India", remote:"On-site", pay:"Paid",
+    stipend:"₹5,000/month (per lab notice)", duration:"6 months",
+    deadline:"Batch-based — DGRE runs periodic intakes, check current notice", deadlineFlag:"unverified",
+    eligibility:"Engineering students (CSE/geoinformatics/civil), apply by post + email to director.dgre@gov.in",
+    skills:"Remote sensing tools, mapping, general CSE fundamentals", intlAllowed:"India nationals only",
+    link:"https://www.drdo.gov.in", source:"DRDO / lab-specific notice (via aggregator)",
+    verified:"09 Aug 2026 — DRDO internships confirmed lab-wise, not centralized; this batch's live status not independently confirmed", score:6, tags:["research","government"]
+  },
+  {
+    id:"drdo-debel-2026", title:"Paid Internship — DEBEL Lab", org:"DRDO (Defence Bio-Engineering & Electro Medical Laboratory)",
+    category:"Government / Research", location:"Bengaluru",
+    region:"India", remote:"On-site", pay:"Paid",
+    stipend:"₹30,000 (per lab notice, 8 seats)", duration:"Not specified",
+    deadline:"Was reported 31 May — likely closed for this cycle, check for next batch", deadlineFlag:"unverified",
+    eligibility:"Engineering students, apply per DEBEL's own process", skills:"Domain varies by project",
+    intlAllowed:"India nationals only", link:"https://www.drdo.gov.in", source:"DRDO lab notice (via aggregator)",
+    verified:"09 Aug 2026 — flagged likely CLOSED for the referenced cycle; kept so you watch for the next one", score:4, tags:["research","government","closed"]
+  },
+  {
+    id:"gsoc-2026", title:"Google Summer of Code (open-source contributor)", org:"Google / GSoC org sponsors",
+    category:"Open-Source", location:"Remote",
+    region:"International", remote:"Remote", pay:"Paid",
+    stipend:"From $3,000 depending on region/project size", duration:"~12 weeks (varies by program size)",
+    deadline:"Annual cycle — 2026 window closed, watch for 2027 (typically opens Feb–Mar)", deadlineFlag:"unverified",
+    eligibility:"18+, student or hobbyist developer, pick a participating open-source org",
+    skills:"Git/GitHub, the tech stack of your chosen org, communication", intlAllowed:"Yes, fully remote and global",
+    link:"https://summerofcode.withgoogle.com", source:"Referenced across internship round-up articles",
+    verified:"09 Aug 2026 — program is real and recurring; exact 2027 dates not yet announced", score:8, tags:["opensource","research"]
+  },
+  {
+    id:"msft-explore-2026", title:"Microsoft Explore Program (early-career, pre-final year)", org:"Microsoft",
+    category:"Software Development / SDE", location:"India, multiple cities",
+    region:"India", remote:"On-site", pay:"Paid",
+    stipend:"Reported ~₹50,000/month (unconfirmed by Microsoft directly)", duration:"Full-time internship track, ~10-12 weeks",
+    deadline:"Deadline Not Specified", deadlineFlag:"unverified",
+    eligibility:"Penultimate-year students", skills:"DSA, one strong language, CS fundamentals",
+    intlAllowed:"India-based", link:"https://careers.microsoft.com/students/us/en/usearlytalentcareerarea",
+    source:"Aggregated from multiple internship round-ups", verified:"09 Aug 2026 — program exists historically, current-cycle status unconfirmed", score:6, tags:["sde"]
+  },
+  {
+    id:"unstop-generic", title:"Live aggregated SDE / AI-ML / Web Dev internships (India)", org:"Unstop (aggregator)",
+    category:"Multiple", location:"Pan-India + remote",
+    region:"India", remote:"Hybrid", pay:"Paid",
+    stipend:"Varies by listing", duration:"Varies",
+    deadline:"Live-updating, check portal directly", deadlineFlag:"unverified",
+    eligibility:"Varies per listing", skills:"Varies per listing", intlAllowed:"Mostly India-focused",
+    link:"https://unstop.com/internships", source:"Unstop internships board",
+    verified:"09 Aug 2026 — live board, not a single opportunity; use directly for daily manual refresh", score:5, tags:["aggregator"]
+  },
+  {
+    id:"internshala-generic", title:"Live aggregated internships (all categories, free-certificate options)", org:"Internshala (aggregator)",
+    category:"Multiple", location:"Pan-India + remote",
+    region:"India", remote:"Remote", pay:"Unpaid",
+    stipend:"Mix of paid and unpaid, filterable on-site", duration:"Varies",
+    deadline:"Live-updating", deadlineFlag:"unverified",
+    eligibility:"Students and freshers", skills:"Varies per listing", intlAllowed:"Mostly India-focused",
+    link:"https://internshala.com/internships/computer-science-internship", source:"Internshala CS internships board",
+    verified:"09 Aug 2026 — live board, good for daily manual scan or recurring search target", score:5, tags:["aggregator"]
+  },
+  {
+    id:"wellfound-generic", title:"Startup SDE / AI internships (global, remote-friendly)", org:"Wellfound (aggregator)",
+    category:"Startup", location:"Remote-first, global startups",
+    region:"International", remote:"Remote", pay:"Paid",
+    stipend:"Varies widely by startup", duration:"Varies",
+    deadline:"Live-updating", deadlineFlag:"unverified",
+    eligibility:"Varies per listing", skills:"Varies per listing", intlAllowed:"Yes, many remote-global roles",
+    link:"https://wellfound.com/jobs", source:"Wellfound (AngelList Talent) job board",
+    verified:"09 Aug 2026 — best source for startup/remote roles; requires manual filtering by 'internship'", score:6, tags:["startup","aggregator","remote"]
+  },
+  {
+    id:"iit-research-generic", title:"Summer research internship (professor-led labs, various depts)", org:"IITs / IISc / IIITs (institution-wide)",
+    category:"Research", location:"Campus-based, India",
+    region:"India", remote:"On-site", pay:"Unpaid",
+    stipend:"Occasionally a small stipend, mostly unpaid / expenses-only", duration:"6–10 weeks, typically May–July",
+    deadline:"Institution-specific — most SRFP-style programs open Nov–Jan for the following summer", deadlineFlag:"unverified",
+    eligibility:"2nd/3rd-year students, strong academic record", skills:"Depends on lab: ML, systems, theory, etc.",
+    intlAllowed:"Some programs (e.g. IAS-IISc-INSA Fellowship) open to all Indian students",
+    link:"https://www.iisc.ac.in/summer-fellowship-programme/", source:"Institutional research-internship model (IISc Summer Fellowship as example)",
+    verified:"09 Aug 2026 — program structure confirmed real; 2027 cycle dates not yet open", score:7, tags:["research","highvalue"]
+  },
+  {
+    id:"cold-email-note", title:"Direct professor cold-email research assistantship", org:"Any university lab (self-sourced)",
+    category:"Research", location:"Varies",
+    region:"India", remote:"Hybrid", pay:"Unpaid",
+    stipend:"Rarely paid unless grant-funded", duration:"Flexible, self-negotiated",
+    deadline:"No deadline — rolling, self-initiated", deadlineFlag:"unverified",
+    eligibility:"Any year, stronger with a relevant project or GitHub to show",
+    skills:"Whatever the lab's research area needs — read 2-3 of their papers first", intlAllowed:"Yes, cold-emailing international faculty is common and appropriate",
+    link:"", source:"Standard practice, not a specific posting",
+    verified:"Evergreen — this is a method, not a live listing. Shortlist 5-10 professors, read two of their papers, then send a short, specific email.", score:7, tags:["research"]
+  },
+  {
+    id:"accenture-ate-2026", title:"Advanced Technology Engineer Intern", org:"Accenture",
+    category:"Software Development / SDE", location:"Not specified in the job description",
+    region:"India", remote:"Not specified", pay:"Paid",
+    stipend:"Not stated in the job description", duration:"Not specified",
+    deadline:"11 Sep 2026 — passed. Watch for the next cycle.", deadlineFlag:"unverified",
+    eligibility:"Batch 2028 eligible", skills:"Java/C#/C++/Python, React or Angular, SQL, cloud basics, test automation, AI/ML basics",
+    intlAllowed:"Not specified", link:"https://www.accenture.com/in-en/careers", source:"Job description shared by the applicant",
+    verified:"Details from the job description; process was 5 stages (technical, coding, behavioral, communication, interview)", checked:"2026-09-11", score:7, tags:["sde","closed"]
+  },
+  {
+    id:"trilogy-catalyst-2028", title:"Innovation Catalyst — Software Development Engineer Intern", org:"Trilogy Innovation",
+    category:"Software Development / SDE", location:"Fully remote, 40 hours/week",
+    region:"India", remote:"Remote", pay:"Paid",
+    stipend:"₹75,000/month", duration:"2 months, starting mid-May 2027 (2028 graduates)",
+    deadline:"Not stated in the job description — apply through the application form", deadlineFlag:"unverified",
+    eligibility:"2028 graduates. No prior internship needed; self-driven projects count more than resume lines.",
+    skills:"CS fundamentals, directing AI tools well, talking to customers", intlAllowed:"Not specified",
+    link:"", source:"Job description (Trilogy Innovation / Zamstars)",
+    verified:"05 Oct 2026 — from the job description. Process: GitHub take-home (2 days), 15-min CCAT, 30-min project round, two VP interviews", checked:"2026-10-05", score:9, tags:["sde","highvalue"]
+  },
+  {
+    id:"daad-wise-2027", title:"DAAD WISE — funded research internship in Germany", org:"DAAD (German Academic Exchange Service)",
+    category:"Research", location:"Germany (host institute, May–July 2027)",
+    region:"International", remote:"On-site", pay:"Paid",
+    stipend:"Reported €831–€992/month, sources differ; travel and insurance included", duration:"About 2–3 months, May–July 2027",
+    deadline:"Reported 1 Nov 2026 — confirm on the DAAD portal", deadlineFlag:"unverified",
+    eligibility:"Indian national at a DAAD partner institute (check yours is listed), in 5th or 6th semester at the deadline. You find your own host professor.",
+    skills:"Strong academics, research interest, a clear email to host professors", intlAllowed:"Open to Indian students only",
+    link:"https://www.daad.in", source:"Aggregator reports of the DAAD programme",
+    verified:"05 Oct 2026 — deadline and stipend come from aggregator sites, not the official portal", checked:"2026-10-05", score:8, tags:["research","highvalue"]
+  },
+  {
+    id:"google-appeng-2027", title:"Application Engineering Intern, Summer 2027", org:"Google",
+    category:"Software Development / SDE", location:"Bengaluru (on-site)",
+    region:"India", remote:"On-site", pay:"Paid",
+    stipend:"Not published", duration:"10–12 weeks, starting May or June 2027",
+    deadline:"15 Sep 2026 — closed. Watch for the next cycle.", deadlineFlag:"unverified",
+    eligibility:"Expected graduation 2028, must live in India during the internship, fluent English",
+    skills:"At least one general-purpose programming language", intlAllowed:"India-based role",
+    link:"https://careers.google.com/students/", source:"News and aggregator reports of the Google listing",
+    verified:"05 Oct 2026 — closing date reported by several sites; role confirmed closed", checked:"2026-10-05", score:6, tags:["sde","closed"]
+  },
+  {
+    id:"goldman-sa-2027", title:"Summer Analyst Program 2027 (India)", org:"Goldman Sachs",
+    category:"Finance / Banking Tech", location:"India (see the careers page)",
+    region:"India", remote:"On-site", pay:"Paid",
+    stipend:"Not published", duration:"Not specified",
+    deadline:"Opened 1 Jul 2026 per reports — confirm the closing date on the careers page", deadlineFlag:"unverified",
+    eligibility:"Students graduating in 2028", skills:"Depends on the division; engineering roles need DSA and coding",
+    intlAllowed:"India-based role", link:"https://www.goldmansachs.com/careers/students/", source:"Aggregator round-up of 2027 programmes",
+    verified:"05 Oct 2026 — opening date from an aggregator, not the official page", checked:"2026-10-05", score:6, tags:["finance"]
+  },
+  {
+    id:"blackrock-2027", title:"Asia Pacific Summer Internship 2027", org:"BlackRock",
+    category:"Finance / Banking Tech", location:"Asia Pacific offices",
+    region:"International", remote:"Not specified", pay:"Paid",
+    stipend:"Not published", duration:"8 weeks, June–August 2027",
+    deadline:"Rolling — official 2027 India dates not yet published", deadlineFlag:"unverified",
+    eligibility:"Graduating between Sep 2027 and Aug 2028; functions include Technology and Analytics",
+    skills:"Coding, analytical thinking", intlAllowed:"Check the posting for your country",
+    link:"https://careers.blackrock.com", source:"Aggregator round-up of 2027 programmes",
+    verified:"05 Oct 2026 — programme details from an aggregator, not the official page", checked:"2026-10-05", score:6, tags:["finance"]
+  }
+];
+
+const STORAGE_PREFIX = "intern-track:";
+
+function categoryOptions(){
+  const cats = [...new Set(DATA.map(d=>d.category))].sort();
+  const sel = document.getElementById('f-cat');
+  cats.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
+}
+
+function scoreBand(item){
+  if(item.tags.includes('closed')) return 'closing';
+  if(item.score>=8) return 'best';
+  if(item.tags.includes('research')) return 'research';
+  if(item.tags.includes('startup')||item.tags.includes('aggregator')) return 'startup';
+  return 'other';
+}
+
+const DATE_PREFIX = "intern-date:";
+const CHECKED_ON = "2026-08-09";
+const STATUSES = ["none","Interested","Applied","OA Received","Interview","Selected","Rejected","Saved"];
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const mem = {};  // fallback if localStorage is blocked
+const store = {
+  get(k){ try{ const v = localStorage.getItem(k); if(v!==null) return v; }catch(e){} return mem[k] ?? null; },
+  set(k,v){ mem[k] = v; try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ delete mem[k]; try{ localStorage.removeItem(k); }catch(e){} }
+};
+function getStatus(id){ const v = store.get(STORAGE_PREFIX+id); return STATUSES.includes(v) ? v : 'none'; }
+function setStatus(id,v){ if(STATUSES.includes(v)) store.set(STORAGE_PREFIX+id, v); }
+function getDate(id){ const v = store.get(DATE_PREFIX+id); return v && ISO.test(v) ? v : ''; }
+function setDate(id,v){ if(v && ISO.test(v)) store.set(DATE_PREFIX+id, v); else store.del(DATE_PREFIX+id); }
+function daysBetween(iso){ const t=new Date(); t.setHours(0,0,0,0); return Math.round((new Date(iso+'T00:00:00')-t)/864e5); }
+function countdownHtml(iso){
+  if(!iso) return '';
+  const d = daysBetween(iso);
+  if(d<0) return `<span class="left past">passed ${-d} day${d===-1?'':'s'} ago</span>`;
+  if(d===0) return '<span class="left soon">due today</span>';
+  return `<span class="left ${d<=7?'soon':''}">${d} day${d===1?'':'s'} left</span>`;
+}
+function ageHtml(item){
+  if(!item.link) return '';
+  const n = -daysBetween(item.checked||CHECKED_ON);
+  return `<span class="age ${n>30?'stale':''}">Checked ${n} days ago${n>30?' — re-check before applying':''}</span><br>`;
+}
+function deadlineKey(iso){ if(!iso) return 1e9; const d=daysBetween(iso); return d<0 ? 1e6-d : d; }
+
+function stampFor(item){
+  if(item.tags.includes('closed')) return {cls:'watch', text:'Watch next cycle'};
+  if(item.deadlineFlag==='unverified') return {cls:'', text:'Deadline unverified'};
+  return {cls:'ok', text:'Source confirmed'};
+}
+
+function card(item, status, myDate){
+  const s = stampFor(item);
+  const flag = item.tags.includes('closed') ? 'watch' : (item.deadlineFlag==='unverified' ? 'unverified' : 'confirmed');
+  const link = item.link ? `<a href="${item.link}" target="_blank" rel="noopener">Open source ↗</a>` : `<span class="verify">No direct link</span>`;
+  const cat = item.category.split('/')[0].split('(')[0].trim();
+  const opts = STATUSES.map(v=>`<option value="${v}" ${status===v?'selected':''}>${v==='none'?'Not tracked':v}</option>`).join('');
+  return `
+  <article class="card" data-id="${item.id}" data-flag="${flag}" data-cat="${item.category}" data-region="${item.region}" data-remote="${item.remote}" data-pay="${item.pay}" data-status="${status}" data-search="${(item.title+' '+item.org+' '+item.skills).toLowerCase()}">
+    <div class="card-head">
+      <div><div class="cat">${cat}</div><h3 class="card-title">${item.title}</h3><div class="card-org">${item.org}</div></div>
+      <div class="fit" title="Relevance score">Fit ${item.score}/10<div class="score-bar"><div class="score-fill" style="width:${item.score*10}%"></div></div></div>
+    </div>
+    <div class="chips"><span class="chip ${s.cls}">${s.text}</span><span class="tag">${item.remote}</span><span class="tag">${item.pay}</span></div>
+    <dl class="facts">
+      <dt>Deadline</dt><dd>${item.deadline}</dd>
+      <dt>Stipend</dt><dd>${item.stipend}</dd>
+      <dt>Location</dt><dd>${item.location}</dd>
+      <dt>My date</dt><dd class="mydate-wrap"><input type="date" class="mydate" data-id="${item.id}" value="${myDate||''}" aria-label="Deadline you confirmed for ${item.title}">${countdownHtml(myDate)}</dd>
+    </dl>
+    <details class="more">
+      <summary>Eligibility, skills and sources</summary>
+      <dl class="facts">
+        <dt>Duration</dt><dd>${item.duration}</dd>
+        <dt>Eligibility</dt><dd>${item.eligibility}</dd>
+        <dt>Skills</dt><dd>${item.skills}</dd>
+        <dt>Intl.</dt><dd>${item.intlAllowed}</dd>
+      </dl>
+      <div class="verify">Verified ${item.verified}<br>${ageHtml(item)}Source: ${item.source}</div>
+    </details>
+    <div class="card-foot">${link}<select class="status" data-id="${item.id}" aria-label="Tracking status">${opts}</select></div>
+  </article>`;
+}
+
+function render(){
+  const statuses = {}, dates = {};
+  DATA.forEach(item=>{ statuses[item.id] = getStatus(item.id); dates[item.id] = getDate(item.id); });
+  const order = document.getElementById('f-sort').value;
+
+  const sections = {
+    best: {label:"Best opportunities", items:[]},
+    research: {label:"Research", items:[]},
+    startup: {label:"Startup & aggregator boards", items:[]},
+    closing: {label:"Watch / likely closing", items:[]},
+    other: {label:"More SDE & government", items:[]},
+  };
+  DATA.forEach(item=>{ sections[scoreBand(item)].items.push(item); });
+  if(order==='deadline'){
+    const all = [...DATA].sort((a,b)=>deadlineKey(dates[a.id])-deadlineKey(dates[b.id]));
+    Object.values(sections).forEach(x=>x.items=[]);
+    sections.best = {label:"By your deadline", items:all};
+  }
+
+  const container = document.getElementById('sections');
+  container.innerHTML = '';
+  Object.entries(sections).forEach(([key, sec])=>{
+    if(sec.items.length===0) return;
+    const secEl = document.createElement('div');
+    secEl.innerHTML = `
+      <div class="section-head"><h2>${sec.label}</h2><div class="rule"></div><span class="count">${sec.items.length}</span></div>
+      <div class="grid">${sec.items.map(i=>card(i, statuses[i.id], dates[i.id])).join('')}</div>
+    `;
+    container.appendChild(secEl);
+  });
+
+  document.querySelectorAll('.status').forEach(sel=>{
+    sel.addEventListener('change', (e)=>{
+      const id = e.target.dataset.id;
+      setStatus(id, e.target.value);
+      e.target.closest('.card').dataset.status = e.target.value;
+      applyFilters();
+    });
+  });
+
+  document.querySelectorAll('.mydate').forEach(inp=>{
+    inp.addEventListener('change', (e)=>{ setDate(e.target.dataset.id, e.target.value); render(); });
+  });
+
+  applyFilters();
+}
+
+function applyFilters(){
+  const q = document.getElementById('q').value.toLowerCase();
+  const fcat = document.getElementById('f-cat').value;
+  const floc = document.getElementById('f-loc').value;
+  const fremote = document.getElementById('f-remote').value;
+  const fpay = document.getElementById('f-pay').value;
+  const fstatus = document.getElementById('f-status').value;
+
+  let shown = 0, total = 0;
+  document.querySelectorAll('.card').forEach(c=>{
+    total++;
+    let ok = true;
+    if(q && !c.dataset.search.includes(q)) ok = false;
+    if(fcat && c.dataset.cat !== fcat) ok = false;
+    if(floc && c.dataset.region !== floc) ok = false;
+    if(fremote && c.dataset.remote !== fremote) ok = false;
+    if(fpay && c.dataset.pay !== fpay) ok = false;
+    if(fstatus && c.dataset.status !== fstatus) ok = false;
+    c.classList.toggle('hidden', !ok);
+    if(ok) shown++;
+  });
+  document.getElementById('counts').textContent = `showing ${shown} of ${total} entries`;
+  document.getElementById('empty').hidden = shown>0;
+
+  document.querySelectorAll('.section-head').forEach(h=>{
+    const grid = h.nextElementSibling;
+    const anyVisible = [...grid.children].some(c=>!c.classList.contains('hidden'));
+    h.style.display = anyVisible ? '' : 'none';
+    grid.style.display = anyVisible ? '' : 'none';
+  });
+}
+
+['q','f-cat','f-loc','f-remote','f-pay','f-status'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', applyFilters);
+  document.getElementById(id).addEventListener('change', applyFilters);
+});
+document.getElementById('f-sort').addEventListener('change', render);
+document.querySelectorAll('.js-clear').forEach(b=>b.addEventListener('click', ()=>{
+  ['q','f-cat','f-loc','f-remote','f-pay','f-status'].forEach(id=>document.getElementById(id).value='');
+  applyFilters();
+}));
+
+function allTracking(){
+  const out = {};
+  const take = (k,v)=>{ if(k.startsWith(STORAGE_PREFIX)||k.startsWith(DATE_PREFIX)) out[k]=v; };
+  Object.entries(mem).forEach(([k,v])=>take(k,v));
+  try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); take(k, localStorage.getItem(k)); } }catch(e){}
+  return out;
+}
+const msg = t => document.getElementById('backup-msg').textContent = t;
+document.getElementById('btn-export').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(allTracking(), null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'internship-tracking-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click(); URL.revokeObjectURL(a.href);
+  msg('Exported.');
+});
+document.getElementById('btn-import').addEventListener('click', ()=>document.getElementById('file-import').click());
+document.getElementById('file-import').addEventListener('change', async (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  try{
+    const data = JSON.parse(await f.text()); let n = 0;
+    Object.entries(data).forEach(([k,v])=>{
+      if(k.startsWith(STORAGE_PREFIX)){ setStatus(k.slice(STORAGE_PREFIX.length), v); n++; }
+      else if(k.startsWith(DATE_PREFIX)){ setDate(k.slice(DATE_PREFIX.length), v); n++; }
+    });
+    msg(`Imported ${n} entries.`); render();
+  }catch(err){ msg('Import failed: choose a file exported from this page.'); }
+  e.target.value = '';
+});
+
+const ageNow = -daysBetween(CHECKED_ON);
+document.getElementById('meta-age').textContent = '';
+document.getElementById('meta-n').textContent = DATA.length;
+
+categoryOptions();
+render();
+</script>
+</body>
+</html>
